@@ -9,6 +9,7 @@ import io.realm.kotlin.RealmConfiguration
 import io.realm.kotlin.ext.isManaged
 import io.realm.kotlin.ext.query
 import io.realm.kotlin.notifications.ResultsChange
+import io.realm.kotlin.query.Sort
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -16,6 +17,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import org.mongodb.kbson.ObjectId
 
 class EventDataViewModel : ViewModel() {
     private val config = RealmConfiguration.create(schema = setOf(Event::class))
@@ -55,7 +57,7 @@ class EventDataViewModel : ViewModel() {
     }
     private suspend fun read() {
         CoroutineScope(Dispatchers.Main).launch {
-            val flow: Flow<ResultsChange<Event>> = realm.query<Event>().asFlow()
+            val flow: Flow<ResultsChange<Event>> = realm.query<Event>().sort("reminder", Sort.ASCENDING).asFlow()
             flow.collect { eventChange ->
                 val events = eventChange.list.map { it }
                 _listOfEvents.value = events
@@ -138,5 +140,13 @@ class EventDataViewModel : ViewModel() {
             _dateSuppText.value = "The date is not valid"
             _confirmButton.value = false
         }
+    }
+
+    suspend fun getEventById(id: ObjectId): Event {
+        val filterByPrimaryKey = realm.query<Event>("_id == $0", id)
+        val findedEvent= filterByPrimaryKey.find().first()
+        Log.d("alarm_tag","Founded event: $findedEvent")
+
+        return findedEvent
     }
 }

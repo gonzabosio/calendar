@@ -1,5 +1,7 @@
 package com.calendarapp.ui
 
+import android.content.Context
+import android.util.Log
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -34,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calendarapp.R
 import com.calendarapp.data.Event
+import com.calendarapp.notif.NotificationService
 import com.calendarapp.ui.nav.numberToMonth
 import com.calendarapp.viewmodel.EventDataViewModel
 import kotlinx.coroutines.launch
@@ -45,7 +48,8 @@ fun EventItem(
     date: String,
     event: Event,
     eventVM: EventDataViewModel,
-    onUpdateClick: (Event) -> Unit,
+    thisContext: Context,
+    onUpdateClick: (Event) -> Unit
 ) {
     val modifier: Modifier = Modifier
     var isContextMenuVisible by rememberSaveable {
@@ -58,6 +62,7 @@ fun EventItem(
 
     val coroutineScope = rememberCoroutineScope()
 
+    val notificationService = NotificationService(thisContext)
     Card(
         elevation = CardDefaults.cardElevation(4.dp),
         colors =
@@ -93,7 +98,18 @@ fun EventItem(
                     Text(text = " at ")
                     Text(text = hour, fontSize = 18.sp, fontWeight = FontWeight.W800)
                 }
-                Text(text = "${numberToMonth(date)} ${date.slice(0..1)}, ${date.slice(5..8)}")
+                Log.d("date_tag","Date: $date")
+
+                if (date.length == 8) {
+                    Text(text = "${numberToMonth(date)} ${date[0]}, ${date.slice(4..7)}")
+                }
+                else if(date.length == 9 && date[1] == '-') {
+                    Text(text = "${numberToMonth(date)} ${date[0]}, ${date.slice(5..8)}")
+                }
+                else if(date.length == 9 && date[2] == '-') {
+                    Text(text = "${numberToMonth(date)} ${date.slice(0..1)}, ${date.slice(5..8)}")
+                }
+                else Text(text = "${numberToMonth(date)} ${date.slice(0..1)}, ${date.slice(6..9)}")
             }
             IconButton(
                 onClick = {
@@ -124,6 +140,7 @@ fun EventItem(
                     coroutineScope.launch {
                         isContextMenuVisible = false
                         eventVM.delete(event)
+                        notificationService.cancel(event)
                     }
                 }
             )

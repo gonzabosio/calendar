@@ -1,9 +1,13 @@
 package com.calendarapp.ui.nav
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Build
+import android.util.Log
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -42,6 +46,7 @@ import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -61,9 +66,11 @@ import androidx.compose.ui.window.Dialog
 import cafe.adriel.voyager.core.screen.Screen
 import com.calendarapp.R
 import com.calendarapp.data.Event
+import com.calendarapp.notif.NotificationService
 import com.calendarapp.ui.EventItem
 import com.calendarapp.ui.theme.CalendarAppTheme
 import com.calendarapp.viewmodel.EventDataViewModel
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -74,6 +81,7 @@ import java.util.TimeZone
 class MainScreen(
     private val eventVM: EventDataViewModel,
     private val context: Context,
+    private val thisContext: Context
 ) : Screen {
     @SuppressLint("CoroutineCreationDuringComposition", "SimpleDateFormat",
         "StateFlowValueCalledInComposition"
@@ -87,6 +95,18 @@ class MainScreen(
             color = MaterialTheme.colorScheme.background
         ) {
             CalendarAppTheme {
+                var hasNotificationPermission by remember {
+                    mutableStateOf(false)
+                }
+                val permissionLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.RequestPermission(),
+                    onResult = { isGranted ->
+                        hasNotificationPermission = isGranted
+                    }
+                )
+                LaunchedEffect(key1 = true) {
+                    permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
                 val modifier: Modifier = Modifier
                 val scaffoldState = rememberBottomSheetScaffoldState()
                 val calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC-3"))
@@ -121,6 +141,8 @@ class MainScreen(
                 val dateSuppText by eventVM.dateSuppText.collectAsState()
                 val canConfirm by eventVM.confirmButton.collectAsState()
                 val titleSuppText by eventVM.titleSuppText.collectAsState()
+
+                val scheduler = NotificationService(context)
                 BottomSheetScaffold(
                     sheetPeekHeight = 190.dp,
                     scaffoldState = scaffoldState,
@@ -133,7 +155,7 @@ class MainScreen(
                                 )
                             }
                             items(events) {event->
-                                EventItem(name = event.title, hour = event.hour, date = event.date, event, eventVM,
+                                EventItem(name = event.title, hour = event.hour, date = event.date, event, eventVM, thisContext,
                                     onUpdateClick = {
                                         coroutineScope.launch {
                                             eventItem = event
@@ -224,6 +246,11 @@ class MainScreen(
                             horizontalArrangement = Arrangement.End,
                             modifier = Modifier.fillMaxWidth()
                         ) {
+//                            Button(onClick = {
+//                                scheduler.schedule(eventItem)
+//                            }) {
+//                                Text(text = "Show Notification")
+//                            }
                             ExtendedFloatingActionButton(
                                 onClick = {
                                     showEventAdder = true
@@ -292,7 +319,8 @@ class MainScreen(
                                                 )
                                             }
                                         },
-                                        supportingText = { Text(text = titleSuppText)}
+                                        supportingText = { Text(text = titleSuppText)},
+                                        singleLine = true
                                     )
                                     Row(
                                         modifier = Modifier
@@ -346,6 +374,11 @@ class MainScreen(
                                                 if (title != "" && myTime != "") {
                                                     eventVM.create(title, myDate, myTime, millis)
                                                 }
+                                                eventItem.title = title
+                                                eventItem.date = myDate
+                                                eventItem.hour = myTime
+                                                eventItem.reminder = millis
+                                                scheduler.schedule(eventItem)
                                                 showEventAdder = false
                                             }
                                         },  shape = RoundedCornerShape(14.dp),
@@ -388,12 +421,8 @@ class MainScreen(
                                                 title = it
                                                 eventVM.adviceForTitleText(title)
                                             },
-                                            label = {
-                                                Text(
-                                                    text = "Event ${numberToMonth(eventItem.date)} ${eventItem.date.slice(0..1)}, ${eventItem.date.slice(5..8)}"
-                                                )
-                                            },
-                                            supportingText = { Text(text = titleSuppText)}
+                                            supportingText = { Text(text = titleSuppText)},
+                                            singleLine = true
                                         )
                                         OutlinedTextField(
                                             value = myDate,
@@ -461,8 +490,11 @@ class MainScreen(
                                                         val date: Date =
                                                             formatter.parse(toParse)
                                                         val millis: Long = date.time
-                                                        delay(1000)
                                                         eventVM.update(eventItem, title, myDate, myTime, millis)
+                                                        eventItem = eventVM.getEventById(eventItem._id)
+                                                        Log.d("alarm_tag", "${eventItem._id}, ${eventItem.title} ${eventItem.date} ${eventItem.hour}")
+                                                        scheduler.cancel(eventItem)
+                                                        scheduler.schedule(eventItem)
                                                     }
                                                 }
                                                 else {
