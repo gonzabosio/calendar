@@ -8,18 +8,14 @@ import android.content.Intent
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.calendarapp.CalendarApplication.Companion.CHANNEL_ID
-import com.calendarapp.R
-import kotlin.random.Random
 
-const val channelID = "channel1"
 class NotificationReceiver: BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent?) {
         val notificationID = intent?.getIntExtra("notification_id", 0) ?: 0
         val event = intent?.getStringExtra("notification_event") ?: "Event"
-        val bigTextStyle = NotificationCompat.BigTextStyle()
-            .bigText(event)
-        val notification: Notification = NotificationCompat.Builder(context, channelID)
+        val bigTextStyle = NotificationCompat.BigTextStyle().bigText(event)
+        val notification: Notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_menu_today)
             .setContentTitle(intent?.getStringExtra("Calendar Reminder"))
             .setContentText("An event is coming up!")

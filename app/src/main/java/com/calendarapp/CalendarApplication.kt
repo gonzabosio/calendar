@@ -3,7 +3,6 @@ package com.calendarapp
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.os.Build
 
 class CalendarApplication: Application() {
     override fun onCreate() {

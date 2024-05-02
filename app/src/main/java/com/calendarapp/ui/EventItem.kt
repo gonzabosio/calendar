@@ -1,7 +1,6 @@
 package com.calendarapp.ui
 
 import android.content.Context
-import android.util.Log
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -98,8 +97,6 @@ fun EventItem(
                     Text(text = " at ")
                     Text(text = hour, fontSize = 18.sp, fontWeight = FontWeight.W800)
                 }
-                Log.d("date_tag","Date: $date")
-
                 if (date.length == 8) {
                     Text(text = "${numberToMonth(date)} ${date[0]}, ${date.slice(4..7)}")
                 }

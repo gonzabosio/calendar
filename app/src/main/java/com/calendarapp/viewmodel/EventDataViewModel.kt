@@ -142,11 +142,10 @@ class EventDataViewModel : ViewModel() {
         }
     }
 
-    suspend fun getEventById(id: ObjectId): Event {
+    fun getEventById(id: ObjectId): Event {
         val filterByPrimaryKey = realm.query<Event>("_id == $0", id)
-        val findedEvent= filterByPrimaryKey.find().first()
-        Log.d("alarm_tag","Founded event: $findedEvent")
+        val foundEvent= filterByPrimaryKey.find().first()
 
-        return findedEvent
+        return foundEvent
     }
 }

@@ -37,7 +37,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -70,8 +69,9 @@ import com.calendarapp.notif.NotificationService
 import com.calendarapp.ui.EventItem
 import com.calendarapp.ui.theme.CalendarAppTheme
 import com.calendarapp.viewmodel.EventDataViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -84,7 +84,7 @@ class MainScreen(
     private val thisContext: Context
 ) : Screen {
     @SuppressLint("CoroutineCreationDuringComposition", "SimpleDateFormat",
-        "StateFlowValueCalledInComposition"
+        "StateFlowValueCalledInComposition", "DefaultLocale"
     )
     @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
     @OptIn(ExperimentalMaterial3Api::class)
@@ -185,22 +185,6 @@ class MainScreen(
                             .padding(start = 8.dp, end = 8.dp, bottom = 16.dp)
                             .height(1.dp)
                             .background(color = colorResource(id = R.color.card)))
-                        OutlinedButton(
-                            onClick = { showTimePicker = true },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(start = 8.dp, end = 8.dp)
-                                .height(60.dp),
-                            shape = RoundedCornerShape(15.dp)
-                        ) {
-                            Text(text = "Select hour", fontSize = 16.sp)
-                            Spacer(modifier = Modifier.weight(1f))
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_clock),
-                                contentDescription = null,
-                                modifier = Modifier.size(28.dp)
-                            )
-                        }
                         if (showTimePicker) {
                             Dialog(
                                 onDismissRequest = { showTimePicker = false },
@@ -246,11 +230,6 @@ class MainScreen(
                             horizontalArrangement = Arrangement.End,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-//                            Button(onClick = {
-//                                scheduler.schedule(eventItem)
-//                            }) {
-//                                Text(text = "Show Notification")
-//                            }
                             ExtendedFloatingActionButton(
                                 onClick = {
                                     showEventAdder = true
@@ -258,9 +237,9 @@ class MainScreen(
                                 },
                                 shape = RoundedCornerShape(16.dp),
                                 modifier = Modifier
-                                    .padding(8.dp)
-                                    .height(60.dp)
-                                    .width(150.dp)
+                                    .padding(16.dp)
+                                    .height(70.dp)
+                                    .width(170.dp)
                                     .fillMaxHeight()
                             ) {
                                 Text(text = "Add Event", modifier.padding(end = 8.dp))
@@ -365,19 +344,20 @@ class MainScreen(
                                         horizontalArrangement = Arrangement.End
                                     ) {
                                         Button(onClick = {
+                                            myDate = millisToYearsMonthsDays(datePickerState.selectedDateMillis)
+                                            val toParse = "$myDate $myTime"
+                                            val formatter = SimpleDateFormat("dd-MM-yyyy HH:mm")
+                                            val date: Date = formatter.parse(toParse)
+                                            val millis: Long = date.time
                                             coroutineScope.launch {
-                                                myDate = millisToYearsMonthsDays(datePickerState.selectedDateMillis)
-                                                val toParse = "$myDate $myTime"
-                                                val formatter = SimpleDateFormat("dd-MM-yyyy HH:mm")
-                                                val date: Date = formatter.parse(toParse)
-                                                val millis: Long = date.time
-                                                if (title != "" && myTime != "") {
-                                                    eventVM.create(title, myDate, myTime, millis)
+                                                eventVM.create(title, myDate, myTime, millis)
+                                                val instantiate = CoroutineScope(Dispatchers.Main).async {
+                                                    eventItem.title = title
+                                                    eventItem.date = myDate
+                                                    eventItem.hour = myTime
+                                                    eventItem.reminder = millis
                                                 }
-                                                eventItem.title = title
-                                                eventItem.date = myDate
-                                                eventItem.hour = myTime
-                                                eventItem.reminder = millis
+                                                instantiate.await()
                                                 scheduler.schedule(eventItem)
                                                 showEventAdder = false
                                             }
@@ -485,16 +465,14 @@ class MainScreen(
                                                 if (eventVM.isDateTextRight(myDate, myDate.length)) {
                                                     coroutineScope.launch {
                                                         val toParse = "$myDate $myTime"
-                                                        val formatter =
-                                                            SimpleDateFormat("dd-MM-yyyy HH:mm")
-                                                        val date: Date =
-                                                            formatter.parse(toParse)
+                                                        val formatter = SimpleDateFormat("dd-MM-yyyy HH:mm")
+                                                        val date: Date = formatter.parse(toParse)
                                                         val millis: Long = date.time
                                                         eventVM.update(eventItem, title, myDate, myTime, millis)
                                                         eventItem = eventVM.getEventById(eventItem._id)
-                                                        Log.d("alarm_tag", "${eventItem._id}, ${eventItem.title} ${eventItem.date} ${eventItem.hour}")
                                                         scheduler.cancel(eventItem)
                                                         scheduler.schedule(eventItem)
+                                                        title = ""
                                                     }
                                                 }
                                                 else {
